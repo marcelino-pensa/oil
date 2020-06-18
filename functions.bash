@@ -52,5 +52,5 @@ function checkout_branches_and_build {
 }
 
 function bouncebs {
-    ~/bounce_basestation.py
+    ~/oil/bounce_basestation.py
 }
