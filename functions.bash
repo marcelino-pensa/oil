@@ -62,3 +62,9 @@ function bounceperch {
 function bouncedrone {
     ~/oil/bounce.py $DRONE_HOSTNAME
 }
+
+function bounceall {
+    # bouncedrone
+    bouncebs
+    bounceperch
+}
