@@ -2,10 +2,11 @@
 
 import time
 import xmlrpc.client
+import sys
 
-server = xmlrpc.client.ServerProxy('http://basestation.local:9999/RPC2')
+server = xmlrpc.client.ServerProxy('http://' + sys.argv[1] '.local:9999/RPC2')
 
-print("stopping all processes on basestation...")
+print("stopping all processes on " + sys.argv[1] + "...")
 server.supervisor.stopAllProcesses()
 time.sleep(3)
 print("stopped. Starting all processes (could take up to 30s)...")

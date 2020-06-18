@@ -52,5 +52,13 @@ function checkout_branches_and_build {
 }
 
 function bouncebs {
-    ~/oil/bounce_basestation.py
+    ~/oil/bounce.py $BASESTATION_HOSTNAME
+}
+
+function bounceperch {
+    ~/oil/bounce.py $PERCH_HOSTNAME
+}
+
+function bouncedrone {
+    ~/oil/bounce.py $DRONE_HOSTNAME
 }
