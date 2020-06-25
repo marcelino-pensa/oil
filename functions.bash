@@ -1,8 +1,24 @@
 
+function home {
+    cd $PENSA_ROS_PATH
+}
+
 function buildit {
     cd $PENSA_ROS_PATH
     ./build.sh --desktop
     cd -
+}
+
+function pingbeep {
+    printf "%s" "Attempting to ping $DRONE_HOSTNAME.local..."
+    while ! timeout 0.2 ping -c 1 -n $DRONE_HOSTNAME.local &> /dev/null
+    do
+        printf "%c" "."
+        test $? -gt 128 && break
+    done
+    printf "success"
+    echo ""
+    paplay ~/oil/beep.ogg
 }
 
 function sshdrone {
@@ -45,26 +61,30 @@ function get_branches {
     sshbs -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git status -uno\""
 }
 
-function checkout_branches_and_build {
-    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; ./build.sh --daisy\""
-    sshperch -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; ./build.sh --perch\""
-    sshbs -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; ./build.sh --basestation\""
+function bounceperch {
+    ~/oil/bounce.py $PERCH_HOSTNAME
 }
 
 function bouncebs {
     ~/oil/bounce.py $BASESTATION_HOSTNAME
-}
-
-function bounceperch {
-    ~/oil/bounce.py $PERCH_HOSTNAME
+    bounceperch
 }
 
 function bouncedrone {
     ~/oil/bounce.py $DRONE_HOSTNAME
 }
 
-function bounceall {
-    # bouncedrone
+function checkout_branches_and_build {
+    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; git pull; ./build.sh --daisy\""
+    sshperch -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; git pull; ./build.sh --perch\""
+    sshbs -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git checkout $1; git pull; ./build.sh --basestation\""
     bouncebs
-    bounceperch
+}
+
+function see3cam_connected {
+    sshdrone -t "sudo -i bash -c \"ls /dev/front_cam\""
+}
+
+function bsmaster {
+    export ROS_MASTER_URI=http://basestation.local:11311
 }
