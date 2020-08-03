@@ -24,35 +24,78 @@ function pingbeep {
 function sshdrone {
     # echo "connecting to pensa@$DRONE_HOSTNAME.local..."
     # echo "If this incorrect, set DRONE_HOSTNAME to C0001 or similar"
-    ssh pensa@"$DRONE_HOSTNAME".local "$@"
+    ssh -t pensa@"$DRONE_HOSTNAME".local "$@"
+}
+
+function ssshdrone {
+    sshdrone "sudo -i $@"
 }
 
 function sshperch {
     # echo "connecting to pensa@$PERCH_HOSTNAME.local..."
     # echo "If this incorrect, set PERCH_HOSTNAME to P0025 or similar"
-    ssh pensa@"$PERCH_HOSTNAME".local "$@"
+    ssh -t pensa@"$PERCH_HOSTNAME".local "$@"
+}
+
+function ssshperch {
+    sshperch "sudo -i $@"
 }
 
 function sshbasestation {
     # echo "connecting to pensa@$BASESTATION_HOSTNAME.local..."
     # echo "If this incorrect, set BASESTATION_HOSTNAME to basestation or similar"
-    ssh pensa@"$BASESTATION_HOSTNAME".local "$@"
+    ssh -t pensa@"$BASESTATION_HOSTNAME".local "$@"
+}
+
+function ssshbasestation {
+    sshbasestation "sudo -i $@"
+}
+
+function ssshbs {
+    ssshbasestation "$@"
 }
 
 function sshbs {
     sshbasestation "$@"
 }
 
+function ondronetest {
+    ssh -t pensa@"$DRONE_HOSTNAME".local "bash -s" < ~/oil/ondronetest.sh
+}
+
 function copy_drone_ulg_path {
     echo "Attempting to pull ULG file from drone"
     ULGPATH=$(sshdrone "cat /var/log/pensa/drone_ros.log | grep -a logger | tail -n1" | awk -F " " '{print $NF}' | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | tee /dev/tty)
     if hash xclip 2>/dev/null; then
+        echo $ULGPATH
         echo $ULGPATH | xclip -selection c
         echo "Path copied to clipboard."
     else
         echo "xclip is not installed; can't copy the path to your clipboard automatically."
         echo "You can install it via 'sudo apt install xclip'."
     fi
+}
+
+function set_gcs_url {
+    IP=$(hostname -I | awk '{print $1}')
+    REMOTE_SCRIPT=$(cat ~/oil/set_gcs_url_template.sh)
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/VARIP/$IP}"
+    echo "$REMOTE_SCRIPT" > ~/oil/tmp/set_gcs_url.sh
+    scp ~/oil/tmp/set_gcs_url.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
+    sshdrone "sudo -s bash /tmp/set_gcs_url.sh"
+}
+
+function zero_drone_camera_offset {
+    scp ~/oil/zero_drone_camera_offset.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
+    sshdrone "sudo -s bash /tmp/zero_drone_camera_offset.sh"
+}
+
+function drone_git_status {
+    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git status; git --no-pager diff\""
+}
+
+function get_drone_ros_log {
+    scp pensa@"$DRONE_HOSTNAME".local:/var/log/pensa/drone_ros.log .
 }
 
 function get_branches {
