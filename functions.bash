@@ -31,6 +31,10 @@ function ssshdrone {
     sshdrone "sudo -i $@"
 }
 
+function rsshdrone {
+    ssh -t root@"$DRONE_HOSTNAME".local "$@"
+}
+
 function sshperch {
     # echo "connecting to pensa@$PERCH_HOSTNAME.local..."
     # echo "If this incorrect, set PERCH_HOSTNAME to P0025 or similar"
@@ -39,6 +43,10 @@ function sshperch {
 
 function ssshperch {
     sshperch "sudo -i $@"
+}
+
+function rsshperch {
+    ssh -t root@"$PERCH_HOSTNAME".local "$@"
 }
 
 function sshbasestation {
@@ -51,12 +59,20 @@ function ssshbasestation {
     sshbasestation "sudo -i $@"
 }
 
+function rsshbasestation {
+    ssh -t root@"$BASESTATION_HOSTNAME".local "$@"
+}
+
 function ssshbs {
     ssshbasestation "$@"
 }
 
 function sshbs {
     sshbasestation "$@"
+}
+
+function rsshbs {
+    rsshbasestation "$@"
 }
 
 function ondronetest {
@@ -83,6 +99,24 @@ function set_gcs_url {
     echo "$REMOTE_SCRIPT" > ~/oil/tmp/set_gcs_url.sh
     scp ~/oil/tmp/set_gcs_url.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
     sshdrone "sudo -s bash /tmp/set_gcs_url.sh"
+}
+
+function copykeysall {
+    IP=$(hostname -I | awk '{print $1}')
+    REMOTE_SCRIPT=$(cat ~/oil/copy_ssh_key_to_root_template.sh)
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
+    echo "$REMOTE_SCRIPT" > ~/oil/tmp/copy_ssh_key_to_root.sh
+
+    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$DRONE_HOSTNAME".local
+    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
+    sshdrone "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
+    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$PERCH_HOSTNAME".local
+    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$PERCH_HOSTNAME".local:/tmp/
+    sshperch "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
+    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$BASESTATION_HOSTNAME".local
+    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$BASESTATION_HOSTNAME".local:/tmp/
+    sshbs "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
 }
 
 function zero_drone_camera_offset {
