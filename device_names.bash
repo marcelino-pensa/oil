@@ -1,4 +1,7 @@
 export NAME=lp0
-export DRONE_HOSTNAME="${DRONE_HOSTNAME:-de0002}"
-export PERCH_HOSTNAME="${PERCH_HOSTNAME:-p0025}"
-export BASESTATION_HOSTNAME="${BASESTATION_HOSTNAME:-basestation}"
+
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+
+export DRONE_HOSTNAME=`cat ~/oil/drone_hostname`
+export BASESTATION_HOSTNAME=`cat ~/oil/basestation_hostname`
+export PERCH_HOSTNAME=`cat ~/oil/perch_hostname`

@@ -9,7 +9,12 @@ function buildit {
     cd -
 }
 
-function pingbeep {
+function bleep {
+    paplay ~/oil/bleep.ogg
+    paplay ~/oil/bleep.ogg
+}
+
+function pingdrone {
     printf "%s" "Attempting to ping $DRONE_HOSTNAME.local..."
     while ! timeout 0.2 ping -c 1 -n $DRONE_HOSTNAME.local &> /dev/null
     do
@@ -19,6 +24,34 @@ function pingbeep {
     printf "success"
     echo ""
     paplay ~/oil/beep.ogg
+}
+
+function pingperch {
+    printf "%s" "Attempting to ping $PERCH_HOSTNAME.local..."
+    while ! timeout 0.2 ping -c 1 -n $PERCH_HOSTNAME.local &> /dev/null
+    do
+        printf "%c" "."
+        test $? -gt 128 && break
+    done
+    printf "success"
+    echo ""
+    paplay ~/oil/beep.ogg
+}
+
+function pingbasestation {
+    printf "%s" "Attempting to ping $BASESTATION_HOSTNAME.local..."
+    while ! timeout 0.2 ping -c 1 -n $BASESTATION_HOSTNAME.local &> /dev/null
+    do
+        printf "%c" "."
+        test $? -gt 128 && break
+    done
+    printf "success"
+    echo ""
+    paplay ~/oil/beep.ogg
+}
+
+function pingbs {
+    pingbasestation
 }
 
 function sshdrone {
@@ -32,7 +65,7 @@ function ssshdrone {
 }
 
 function rsshdrone {
-    ssh -t root@"$DRONE_HOSTNAME".local "$@"
+    ssh -t root@"$DRONE_HOSTNAME".local "cd rosws/src/pensa; bash"
 }
 
 function sshperch {
@@ -46,7 +79,7 @@ function ssshperch {
 }
 
 function rsshperch {
-    ssh -t root@"$PERCH_HOSTNAME".local "$@"
+    ssh -t root@"$PERCH_HOSTNAME".local "cd rosws/src/pensa; bash"
 }
 
 function sshbasestation {
@@ -60,7 +93,7 @@ function ssshbasestation {
 }
 
 function rsshbasestation {
-    ssh -t root@"$BASESTATION_HOSTNAME".local "$@"
+    ssh -t root@"$BASESTATION_HOSTNAME".local "cd rosws/src/pensa; bash"
 }
 
 function ssshbs {
@@ -101,12 +134,16 @@ function set_gcs_url {
     sshdrone "sudo -s bash /tmp/set_gcs_url.sh"
 }
 
-function copykeysall {
+function copy_ssh_keys_all {
     IP=$(hostname -I | awk '{print $1}')
     REMOTE_SCRIPT=$(cat ~/oil/copy_ssh_key_to_root_template.sh)
     REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
     REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
     echo "$REMOTE_SCRIPT" > ~/oil/tmp/copy_ssh_key_to_root.sh
+
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "$DRONE_HOSTNAME".local
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "192.168.8.118"
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "192.168.8.172"
 
     ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$DRONE_HOSTNAME".local
     scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
@@ -164,4 +201,19 @@ function see3cam_connected {
 
 function bsmaster {
     export ROS_MASTER_URI=http://basestation.local:11311
+}
+
+function set_drone {
+    echo $1 > ~/oil/drone_hostname
+    source ~/oil/device_names.bash
+}
+
+function set_basestation {
+    echo $1 > ~/oil/basetation_hostname
+    source ~/oil/device_names.bash
+}
+
+function set_perch {
+    echo $1 > ~/oil/pensa_hostname
+    source ~/oil/device_names.bash
 }
