@@ -1,6 +1,27 @@
+function load_derived_paths {
+    export PENSA_ROS_PATH=$ROS_WS/src/pensa
+    source $ROS_WS/devel/setup.bash
+    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_PATH
+    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_PATH/Tools/sitl_gazebo
+    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PENSA_ROS_PATH/simulation/aws-robomaker-bookstore-world-ros1
+    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PENSA_ROS_PATH/simulation/gazebo_files
+    source $PX4_PATH/Tools/setup_gazebo.bash $PX4_PATH $PX4_PATH/build/px4_sitl_default > /dev/null
+    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/third_party/pensa_resources/simulation_files/sim_fiducials
+    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/third_party/pensa_resources/simulation_files/store_meshes
+    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/simulation/gazebo_files/gazebo_models
+}
+
 
 function home {
     cd $PENSA_ROS_PATH
+}
+
+function res {
+    cd $PENSA_ROS_PATH/third_party/pensa_resources
+}
+
+function ops {
+    cd $PENSA_FLIGHT_OPS_PATH
 }
 
 function buildit {
@@ -14,9 +35,10 @@ function bleep {
     paplay ~/oil/bleep.ogg
 }
 
-function pingdrone {
-    printf "%s" "Attempting to ping $DRONE_HOSTNAME.local..."
-    while ! timeout 0.2 ping -c 1 -n $DRONE_HOSTNAME.local &> /dev/null
+function pingdevice {
+    PING_HOSTNAME=$1
+    printf "%s" "Attempting to ping $PING_HOSTNAME..."
+    while ! timeout 0.2 ping -c 1 -n $PING_HOSTNAME &> /dev/null
     do
         printf "%c" "."
         test $? -gt 128 && break
@@ -24,30 +46,18 @@ function pingdrone {
     printf "success"
     echo ""
     paplay ~/oil/beep.ogg
+}
+
+function pingdrone {
+    pingdevice $DRONE_HOSTNAME.local
 }
 
 function pingperch {
-    printf "%s" "Attempting to ping $PERCH_HOSTNAME.local..."
-    while ! timeout 0.2 ping -c 1 -n $PERCH_HOSTNAME.local &> /dev/null
-    do
-        printf "%c" "."
-        test $? -gt 128 && break
-    done
-    printf "success"
-    echo ""
-    paplay ~/oil/beep.ogg
+    pingdevice $PERCH_HOSTNAME.local
 }
 
 function pingbasestation {
-    printf "%s" "Attempting to ping $BASESTATION_HOSTNAME.local..."
-    while ! timeout 0.2 ping -c 1 -n $BASESTATION_HOSTNAME.local &> /dev/null
-    do
-        printf "%c" "."
-        test $? -gt 128 && break
-    done
-    printf "success"
-    echo ""
-    paplay ~/oil/beep.ogg
+    pingdevice $BASESTATION_HOSTNAME.local
 }
 
 function pingbs {
@@ -57,7 +67,7 @@ function pingbs {
 function sshdrone {
     # echo "connecting to pensa@$DRONE_HOSTNAME.local..."
     # echo "If this incorrect, set DRONE_HOSTNAME to C0001 or similar"
-    ssh -t pensa@"$DRONE_HOSTNAME".local "$@"
+    ssh -tX pensa@"$DRONE_HOSTNAME".local "$@"
 }
 
 function ssshdrone {
@@ -85,7 +95,7 @@ function rsshperch {
 function sshbasestation {
     # echo "connecting to pensa@$BASESTATION_HOSTNAME.local..."
     # echo "If this incorrect, set BASESTATION_HOSTNAME to basestation or similar"
-    ssh -t pensa@"$BASESTATION_HOSTNAME".local "$@"
+    ssh -tX pensa@"$BASESTATION_HOSTNAME".local "$@"
 }
 
 function ssshbasestation {
@@ -108,8 +118,31 @@ function rsshbs {
     rsshbasestation "$@"
 }
 
+function prsshbs {
+    pingbs && rsshbs "$@"
+}
+
 function ondronetest {
     ssh -t pensa@"$DRONE_HOSTNAME".local "bash -s" < ~/oil/ondronetest.sh
+}
+
+function rename_device {
+    target_host=$1
+    new_name=$2
+
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "${target_host}.local"
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "${new_name}.local"
+    pingdevice $target_host.local
+    echo "renaming ${target_host}.local to ${new_name}.local, please enter passwords..."
+    ssh -t pensa@"${target_host}".local "sudo -i change-hostname ${new_name}; sudo -i reboot now"
+    pingdevice $new_name.local
+    echo "${target_host}.local renamed to ${new_name}.local"
+}
+
+function rename_bxxx {
+    target_host="bxxx"
+    new_name="basestation"  # .local will be appended automatically
+    rename_device $target_host $new_name
 }
 
 function copy_drone_ulg_path {
@@ -134,6 +167,16 @@ function set_gcs_url {
     sshdrone "sudo -s bash /tmp/set_gcs_url.sh"
 }
 
+function copy_ssh_keys {
+    TARGET=$1
+
+    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "$TARGET"
+
+    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$TARGET"
+    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$TARGET":/tmp/
+    ssh -t pensa@"$TARGET" "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
+}
+
 function copy_ssh_keys_all {
     IP=$(hostname -I | awk '{print $1}')
     REMOTE_SCRIPT=$(cat ~/oil/copy_ssh_key_to_root_template.sh)
@@ -141,19 +184,9 @@ function copy_ssh_keys_all {
     REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
     echo "$REMOTE_SCRIPT" > ~/oil/tmp/copy_ssh_key_to_root.sh
 
-    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "$DRONE_HOSTNAME".local
-    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "192.168.8.118"
-    ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "192.168.8.172"
-
-    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$DRONE_HOSTNAME".local
-    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$DRONE_HOSTNAME".local:/tmp/
-    sshdrone "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
-    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$PERCH_HOSTNAME".local
-    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$PERCH_HOSTNAME".local:/tmp/
-    sshperch "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
-    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$BASESTATION_HOSTNAME".local
-    scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$BASESTATION_HOSTNAME".local:/tmp/
-    sshbs "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
+    copy_ssh_keys "$DRONE_HOSTNAME".local
+    copy_ssh_keys "$PERCH_HOSTNAME".local
+    copy_ssh_keys "$BASESTATION_HOSTNAME".local
 }
 
 function zero_drone_camera_offset {
@@ -180,12 +213,12 @@ function bounceperch {
 }
 
 function bouncebs {
-    ~/oil/bounce.py $BASESTATION_HOSTNAME
+    sshbs -t "sudo -i bash -c \"bounce all\""
     bounceperch
 }
 
 function bouncedrone {
-    ~/oil/bounce.py $DRONE_HOSTNAME
+    ~/oil/down.py $DRONE_HOSTNAME
 }
 
 function checkout_branches_and_build {
@@ -214,6 +247,6 @@ function set_basestation {
 }
 
 function set_perch {
-    echo $1 > ~/oil/pensa_hostname
+    echo $1 > ~/oil/perch_hostname
     source ~/oil/device_names.bash
 }

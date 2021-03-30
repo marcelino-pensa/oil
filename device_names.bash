@@ -1,4 +1,6 @@
-export NAME=lp0
+export ROS_IP=$(hostname -I | cut -d" " -f1)
+
+export PERCH_NAME=lp0
 
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
