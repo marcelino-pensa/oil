@@ -1,16 +1,3 @@
-function load_derived_paths {
-    export PENSA_ROS_PATH=$ROS_WS/src/pensa
-    source $ROS_WS/devel/setup.bash
-    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_PATH
-    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_PATH/Tools/sitl_gazebo
-    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PENSA_ROS_PATH/simulation/aws-robomaker-bookstore-world-ros1
-    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PENSA_ROS_PATH/simulation/gazebo_files
-    source $PX4_PATH/Tools/setup_gazebo.bash $PX4_PATH $PX4_PATH/build/px4_sitl_default > /dev/null
-    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/third_party/pensa_resources/simulation_files/sim_fiducials
-    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/third_party/pensa_resources/simulation_files/store_meshes
-    export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:$PENSA_ROS_PATH/simulation/gazebo_files/gazebo_models
-}
-
 
 function home {
     cd $PENSA_ROS_PATH
@@ -172,16 +159,19 @@ function copy_ssh_keys {
 
     ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "$TARGET"
 
-    ssh-copy-id -i ~/.ssh/id_rsa.pub pensa@"$TARGET"
+    ssh-copy-id -i ~/.ssh/id_ed25519.pub -f pensa@"$TARGET"
     scp ~/oil/tmp/copy_ssh_key_to_root.sh pensa@"$TARGET":/tmp/
     ssh -t pensa@"$TARGET" "sudo -s bash /tmp/copy_ssh_key_to_root.sh"
 }
 
 function copy_ssh_keys_all {
     IP=$(hostname -I | awk '{print $1}')
+    # get the key text and trim leading and trailing whitespace
+    KEYVAL=$(cat ~/.ssh/id_ed25519.pub | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    echo ">${KEYVAL}<"
     REMOTE_SCRIPT=$(cat ~/oil/copy_ssh_key_to_root_template.sh)
-    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
-    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$USER}"
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$KEYVAL}"
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$KEYVAL}"
     echo "$REMOTE_SCRIPT" > ~/oil/tmp/copy_ssh_key_to_root.sh
 
     copy_ssh_keys "$DRONE_HOSTNAME".local
@@ -234,6 +224,10 @@ function see3cam_connected {
 
 function bsmaster {
     export ROS_MASTER_URI=http://basestation.local:11311
+}
+
+function memaster {
+    export ROS_MASTER_URI=http://localhost:11311
 }
 
 function set_drone {
