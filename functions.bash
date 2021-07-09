@@ -134,7 +134,7 @@ function rename_bxxx {
 
 function copy_drone_ulg_path {
     echo "Attempting to pull ULG file from drone"
-    ULGPATH=$(sshdrone "cat /var/log/pensa/drone_ros.log | grep -a logger | tail -n1" | awk -F " " '{print $NF}' | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | tee /dev/tty)
+    ULGPATH=$(sshdrone "cat /var/log/pensa/drone_flight_stack.log | grep -a logger | tail -n1" | awk -F " " '{print $NF}' | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" | tee /dev/tty)
     if hash xclip 2>/dev/null; then
         echo $ULGPATH
         echo $ULGPATH | xclip -selection c
@@ -155,6 +155,15 @@ function set_gcs_url {
 }
 
 function copy_ssh_keys {
+    IP=$(hostname -I | awk '{print $1}')
+    # get the key text and trim leading and trailing whitespace
+    KEYVAL=$(cat ~/.ssh/id_ed25519.pub | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    echo ">${KEYVAL}<"
+    REMOTE_SCRIPT=$(cat ~/oil/copy_ssh_key_to_root_template.sh)
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$KEYVAL}"
+    REMOTE_SCRIPT="${REMOTE_SCRIPT/USER/$KEYVAL}"
+    echo "$REMOTE_SCRIPT" > ~/oil/tmp/copy_ssh_key_to_root.sh
+
     TARGET=$1
 
     ssh-keygen -f "/home/adam/.ssh/known_hosts" -R "$TARGET"
@@ -185,17 +194,17 @@ function zero_drone_camera_offset {
 }
 
 function drone_git_status {
-    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git status; git --no-pager diff\""
+    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa | /dev/null; pwd; git status; git --no-pager diff\""
 }
 
-function get_drone_ros_log {
-    scp pensa@"$DRONE_HOSTNAME".local:/var/log/pensa/drone_ros.log .
+function get_drone_flight_stack_log {
+    scp pensa@"$DRONE_HOSTNAME".local:/var/log/pensa/drone_flight_stack.log .
 }
 
 function get_branches {
-    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git status -uno\""
-    sshperch -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git status -uno\""
-    sshbs -t "sudo -i bash -c \"cd /root/rosws/src/pensa; pwd; git fetch; git status -uno\""
+    sshdrone -t "sudo -i bash -c \"cd /root/rosws/src/pensa || exit; pwd; git fetch; git status -uno\""
+    sshperch -t "sudo -i bash -c \"cd /root/rosws/src/pensa || exit; pwd; git fetch; git status -uno\""
+    sshbs -t "sudo -i bash -c \"cd /root/rosws/src/pensa || exit; pwd; git fetch; git status -uno\""
 }
 
 function bounceperch {
